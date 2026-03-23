@@ -84,50 +84,64 @@ class CancellationService {
 
         // Validation
         if (reservation == null) {
-            System.out.println("Cancellation Failed: Booking does not exist.");
+            System.out.println("❌ Cancellation Failed: Booking does not exist.");
             return;
         }
 
         if (reservation.isCancelled()) {
-            System.out.println(" Cancellation Failed: Already cancelled.");
+            System.out.println("❌ Cancellation Failed: Already cancelled.");
             return;
         }
 
+        // Step 1: Push to rollback stack
         rollbackStack.push(roomId);
 
+        // Step 2: Restore inventory
         inventory.incrementRoom(reservation.getRoomType());
 
+        // Step 3: Mark as cancelled
         reservation.cancel();
 
+        // Step 4: Confirm cancellation
         System.out.println("✅ Booking Cancelled Successfully!");
         System.out.println("Room ID: " + roomId);
         System.out.println("Guest: " + reservation.getGuestName());
         System.out.println("-----------------------------");
     }
 
+    // Optional: Show rollback stack
     public void showRollbackStack() {
         System.out.println("\nRollback Stack (Recent Cancellations): " + rollbackStack);
     }
 }
+
+// Main Class
 public class BookMyStayApp {
     public static void main(String[] args) {
 
+        // Setup Inventory
         Inventory inventory = new Inventory();
         inventory.addRoom("Single", 1);
 
+        // Setup Booking History
         BookingHistory history = new BookingHistory();
 
         Reservation r1 = new Reservation("Pratyush", "Single", "S101");
         history.addBooking(r1);
 
+        // Cancellation Service
         CancellationService service = new CancellationService(inventory, history);
 
+        // Valid cancellation
         service.cancelBooking("S101");
 
+        // Duplicate cancellation
         service.cancelBooking("S101");
 
+        // Invalid booking
         service.cancelBooking("S999");
 
+        // Show rollback history
         service.showRollbackStack();
     }
 }

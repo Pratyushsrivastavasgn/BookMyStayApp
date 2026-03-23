@@ -1,15 +1,20 @@
 import java.util.*;
 
-// Reservation (Confirmed Booking)
+// Custom Exception
+class InvalidBookingException extends Exception {
+    public InvalidBookingException(String message) {
+        super(message);
+    }
+}
+
+// Reservation
 class Reservation {
     private String guestName;
     private String roomType;
-    private String roomId;
 
-    public Reservation(String guestName, String roomType, String roomId) {
+    public Reservation(String guestName, String roomType) {
         this.guestName = guestName;
         this.roomType = roomType;
-        this.roomId = roomId;
     }
 
     public String getGuestName() {
@@ -19,91 +24,94 @@ class Reservation {
     public String getRoomType() {
         return roomType;
     }
+}
 
-    public String getRoomId() {
-        return roomId;
+// Inventory
+class Inventory {
+    private Map<String, Integer> availability = new HashMap<>();
+
+    public void addRoom(String type, int count) {
+        availability.put(type, count);
+    }
+
+    public boolean isValidRoomType(String type) {
+        return availability.containsKey(type);
+    }
+
+    public int getAvailability(String type) {
+        return availability.getOrDefault(type, 0);
+    }
+
+    public void decrementRoom(String type) throws InvalidBookingException {
+        int count = availability.get(type);
+
+        if (count <= 0) {
+            throw new InvalidBookingException("No rooms available for type: " + type);
+        }
+
+        availability.put(type, count - 1);
     }
 }
 
-// Booking History (List → ordered storage)
-class BookingHistory {
-    private List<Reservation> history = new ArrayList<>();
+class BookingValidator {
 
-    // Add confirmed booking
-    public void addBooking(Reservation reservation) {
-        history.add(reservation);
-    }
+    public static void validate(Reservation reservation, Inventory inventory)
+            throws InvalidBookingException {
 
-    // Read-only access
-    public List<Reservation> getAllBookings() {
-        return history;
-    }
-}
-
-// Reporting Service (Read-only)
-class BookingReportService {
-    private BookingHistory bookingHistory;
-
-    public BookingReportService(BookingHistory bookingHistory) {
-        this.bookingHistory = bookingHistory;
-    }
-
-    // Display all bookings
-    public void showAllBookings() {
-        System.out.println("\n📋 Booking History:\n");
-
-        List<Reservation> bookings = bookingHistory.getAllBookings();
-
-        if (bookings.isEmpty()) {
-            System.out.println("No bookings found.");
-            return;
+        if (reservation.getGuestName() == null || reservation.getGuestName().isEmpty()) {
+            throw new InvalidBookingException("Guest name cannot be empty.");
         }
 
-        for (Reservation r : bookings) {
-            System.out.println("Guest: " + r.getGuestName() +
-                    " | Room Type: " + r.getRoomType() +
-                    " | Room ID: " + r.getRoomId());
-        }
-    }
-
-    // Generate summary report
-    public void generateSummaryReport() {
-        System.out.println("\n📊 Booking Summary Report:\n");
-
-        Map<String, Integer> countByType = new HashMap<>();
-
-        for (Reservation r : bookingHistory.getAllBookings()) {
-            countByType.put(r.getRoomType(),
-                    countByType.getOrDefault(r.getRoomType(), 0) + 1);
+        if (reservation.getRoomType() == null || reservation.getRoomType().isEmpty()) {
+            throw new InvalidBookingException("Room type cannot be empty.");
         }
 
-        for (String type : countByType.keySet()) {
-            System.out.println("Room Type: " + type +
-                    " | Total Booked: " + countByType.get(type));
+        if (!inventory.isValidRoomType(reservation.getRoomType())) {
+            throw new InvalidBookingException("Invalid room type: " + reservation.getRoomType());
+        }
+
+        if (inventory.getAvailability(reservation.getRoomType()) <= 0) {
+            throw new InvalidBookingException(
+                    "Room not available for type: " + reservation.getRoomType());
         }
     }
 }
 
-// Main Class
+class BookingService {
+    private Inventory inventory;
+
+    public BookingService(Inventory inventory) {
+        this.inventory = inventory;
+    }
+
+    public void confirmBooking(Reservation reservation) {
+        try {
+            BookingValidator.validate(reservation, inventory);
+
+            inventory.decrementRoom(reservation.getRoomType());
+
+            System.out.println(" Booking Confirmed for " + reservation.getGuestName() +
+                    " (Room: " + reservation.getRoomType() + ")");
+
+        } catch (InvalidBookingException e) {
+            // Graceful failure
+            System.out.println(" Booking Failed: " + e.getMessage());
+        }
+    }
+}
+
 public class BookMyStayApp {
     public static void main(String[] args) {
 
-        // Step 1: Booking History
-        BookingHistory history = new BookingHistory();
+        Inventory inventory = new Inventory();
+        inventory.addRoom("Single", 1);
+        inventory.addRoom("Double", 0);
 
-        // Step 2: Simulating confirmed bookings
-        history.addBooking(new Reservation("Pratyush", "Single", "S101"));
-        history.addBooking(new Reservation("Amit", "Double", "D201"));
-        history.addBooking(new Reservation("Riya", "Single", "S102"));
-        history.addBooking(new Reservation("Karan", "Suite", "SU301"));
+        BookingService service = new BookingService(inventory);
 
-        // Step 3: Reporting Service
-        BookingReportService reportService = new BookingReportService(history);
-
-        // Step 4: Admin views history
-        reportService.showAllBookings();
-
-        // Step 5: Admin views summary
-        reportService.generateSummaryReport();
+        service.confirmBooking(new Reservation("Pratyush", "Single"));
+        service.confirmBooking(new Reservation("Amit", "Suite"));
+        service.confirmBooking(new Reservation("Riya", "Double"));
+        service.confirmBooking(new Reservation("", "Single"));
     }
 }

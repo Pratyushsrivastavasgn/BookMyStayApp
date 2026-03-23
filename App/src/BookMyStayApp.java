@@ -1,5 +1,6 @@
 import java.util.*;
 
+// Reservation
 class Reservation {
     private String guestName;
     private String roomType;
@@ -18,7 +19,7 @@ class Reservation {
     }
 }
 
-// Inventory Service (State Holder)
+// Shared Inventory (Critical Resource)
 class Inventory {
     private Map<String, Integer> availability = new HashMap<>();
 
@@ -26,102 +27,96 @@ class Inventory {
         availability.put(type, count);
     }
 
+    // Synchronized → critical section
+    public synchronized boolean allocateRoom(String type) {
+        int count = availability.getOrDefault(type, 0);
+
+        if (count > 0) {
+            availability.put(type, count - 1);
+            return true;
+        }
+        return false;
+    }
+
     public int getAvailability(String type) {
         return availability.getOrDefault(type, 0);
     }
-
-    public void decrementRoom(String type) {
-        availability.put(type, availability.get(type) - 1);
-    }
 }
 
-// Booking Request Queue (FIFO)
-class BookingRequestQueue {
+// Shared Booking Queue
+class BookingQueue {
     private Queue<Reservation> queue = new LinkedList<>();
 
-    public void addRequest(Reservation r) {
+    public synchronized void addRequest(Reservation r) {
         queue.offer(r);
     }
 
-    public Reservation getNextRequest() {
-        return queue.poll(); // FIFO
-    }
-
-    public boolean isEmpty() {
-        return queue.isEmpty();
+    public synchronized Reservation getRequest() {
+        return queue.poll();
     }
 }
 
-// Booking Service (Core Logic)
-class BookingService {
+// Booking Processor (Thread)
+class BookingProcessor extends Thread {
+    private BookingQueue queue;
     private Inventory inventory;
 
-    // Track allocated room IDs per room type
-    private Map<String, Set<String>> allocatedRooms = new HashMap<>();
-
-    public BookingService(Inventory inventory) {
+    public BookingProcessor(BookingQueue queue, Inventory inventory) {
+        this.queue = queue;
         this.inventory = inventory;
     }
 
-    // Generate unique room ID
-    private String generateRoomId(String roomType) {
-        return roomType.substring(0, 1).toUpperCase() + UUID.randomUUID().toString().substring(0, 5);
-    }
+    @Override
+    public void run() {
+        while (true) {
 
-    public void processBooking(Reservation reservation) {
-        String type = reservation.getRoomType();
+            Reservation r;
 
-        // Step 1: Check availability
-        if (inventory.getAvailability(type) <= 0) {
-            System.out.println("❌ No rooms available for " + type + " (Guest: " + reservation.getGuestName() + ")");
-            return;
+            // Critical section → fetching request
+            synchronized (queue) {
+                r = queue.getRequest();
+            }
+
+            if (r == null) break;
+
+            // Critical section → allocation
+            boolean success = inventory.allocateRoom(r.getRoomType());
+
+            if (success) {
+                System.out.println("✅ Booking Confirmed for " + r.getGuestName() +
+                        " (" + r.getRoomType() + ") by " + Thread.currentThread().getName());
+            } else {
+                System.out.println("❌ Booking Failed for " + r.getGuestName() +
+                        " (" + r.getRoomType() + ") by " + Thread.currentThread().getName());
+            }
         }
-
-        // Step 2: Generate unique ID
-        String roomId;
-        allocatedRooms.putIfAbsent(type, new HashSet<>());
-
-        do {
-            roomId = generateRoomId(type);
-        } while (allocatedRooms.get(type).contains(roomId)); // uniqueness check
-
-        // Step 3: Assign room (add to set)
-        allocatedRooms.get(type).add(roomId);
-
-        // Step 4: Update inventory (atomic step)
-        inventory.decrementRoom(type);
-
-        // Step 5: Confirm booking
-        System.out.println("✅ Booking Confirmed!");
-        System.out.println("Guest: " + reservation.getGuestName());
-        System.out.println("Room Type: " + type);
-        System.out.println("Room ID: " + roomId);
-        System.out.println("---------------------------");
     }
 }
 
+// Main Class
 public class BookMyStayApp {
     public static void main(String[] args) {
 
-        // Step 1: Setup Inventory
+        // Shared resources
         Inventory inventory = new Inventory();
         inventory.addRoom("Single", 2);
-        inventory.addRoom("Double", 1);
 
-        // Step 2: Setup Queue
-        BookingRequestQueue queue = new BookingRequestQueue();
+        BookingQueue queue = new BookingQueue();
+
+        // Simulate multiple guest requests
         queue.addRequest(new Reservation("Pratyush", "Single"));
         queue.addRequest(new Reservation("Amit", "Single"));
-        queue.addRequest(new Reservation("Riya", "Single")); // should fail (only 2 rooms)
-        queue.addRequest(new Reservation("Karan", "Double"));
+        queue.addRequest(new Reservation("Riya", "Single")); // should fail
+        queue.addRequest(new Reservation("Karan", "Single")); // should fail
 
-        // Step 3: Booking Service
-        BookingService bookingService = new BookingService(inventory);
+        // Multiple threads (concurrent processing)
+        BookingProcessor t1 = new BookingProcessor(queue, inventory);
+        BookingProcessor t2 = new BookingProcessor(queue, inventory);
 
-        // Step 4: Process all requests (FIFO)
-        while (!queue.isEmpty()) {
-            Reservation r = queue.getNextRequest();
-            bookingService.processBooking(r);
-        }
+        t1.setName("Thread-1");
+        t2.setName("Thread-2");
+
+        t1.start();
+        t2.start();
     }
 }

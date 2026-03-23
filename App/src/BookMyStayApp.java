@@ -1,6 +1,5 @@
 import java.util.*;
 
-// Reservation (Represents booking request)
 class Reservation {
     private String guestName;
     private String roomType;
@@ -19,48 +18,45 @@ class Reservation {
     }
 }
 
-// Booking Request Queue (FIFO)
 class BookingRequestQueue {
-    private Queue<Reservation> queue;
+    private Queue<Reservation> requestQueue;
 
     public BookingRequestQueue() {
-        queue = new LinkedList<>();
+        requestQueue = new LinkedList<>();
     }
 
-    // Add request (enqueue)
-    public void addRequest(Reservation reservation) {
-        queue.offer(reservation);
-        System.out.println("Request added for " + reservation.getGuestName());
+    // Add booking request (enqueue)
+    public void addBookingRequest(Reservation reservation) {
+        requestQueue.offer(reservation);
+        System.out.println("Booking request added: "
+                + reservation.getGuestName() + " -> " + reservation.getRoomType());
     }
 
-    // View all requests (read-only)
-    public void displayQueue() {
-        System.out.println("\nBooking Request Queue:\n");
+    public void displayRequests() {
+        System.out.println("\nCurrent Booking Queue:");
 
-        if (queue.isEmpty()) {
-            System.out.println("No pending requests.");
+        if (requestQueue.isEmpty()) {
+            System.out.println("No booking requests available.");
             return;
         }
 
-        for (Reservation r : queue) {
+        for (Reservation r : requestQueue) {
             System.out.println("Guest: " + r.getGuestName() +
-                    " | Room Type: " + r.getRoomType());
+                    ", Room Type: " + r.getRoomType());
         }
     }
 }
 
-// Main Class
+
 public class BookMyStayApp {
     public static void main(String[] args) {
 
-        BookingRequestQueue bookingQueue = new BookingRequestQueue();
+        BookingRequestQueue queue = new BookingRequestQueue();
 
-        // Simulating multiple booking requests (arrival order)
-        bookingQueue.addRequest(new Reservation("Pratyush", "Single"));
-        bookingQueue.addRequest(new Reservation("Amit", "Suite"));
-        bookingQueue.addRequest(new Reservation("Riya", "Double"));
 
-        // Display queue (FIFO order)
-        bookingQueue.displayQueue();
+        queue.addBookingRequest(new Reservation("Pratyush", "Single"));
+        queue.addBookingRequest(new Reservation("Amit", "Double"));
+        queue.addBookingRequest(new Reservation("Riya", "Suite"));
+        queue.displayRequests();
     }
 }

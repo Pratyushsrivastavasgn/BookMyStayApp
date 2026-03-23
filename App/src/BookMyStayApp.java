@@ -1,6 +1,5 @@
 import java.util.*;
 
-// Reservation (Booking Request)
 class Reservation {
     private String guestName;
     private String roomType;
@@ -101,7 +100,6 @@ class BookingService {
     }
 }
 
-// Main Class
 public class BookMyStayApp {
     public static void main(String[] args) {
 

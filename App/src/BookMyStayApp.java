@@ -1,84 +1,66 @@
 import java.util.*;
 
-class Room {
-    private String type;
-    private double price;
-    private String amenities;
-    public Room(String type, double price, String amenities) {
-        this.type = type;
-        this.price = price;
-        this.amenities = amenities;
-    }
-    public String getType() {
-        return type;
-    }
-    public double getPrice() {
-        return price;
-    }
-    public String getAmenities() {
-        return amenities;
-    }
-}
-class Inventory {
-    private Map<String, Integer> availability = new HashMap<>();
+// Reservation (Represents booking request)
+class Reservation {
+    private String guestName;
+    private String roomType;
 
-    public void addRoom(String type, int count) {
-        availability.put(type, count);
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
+        this.roomType = roomType;
     }
 
-    public int getAvailability(String type) {
-        return availability.getOrDefault(type, 0);
+    public String getGuestName() {
+        return guestName;
     }
 
-    public Set<String> getAllRoomTypes() {
-        return availability.keySet();
+    public String getRoomType() {
+        return roomType;
     }
 }
 
-class SearchService {
-    private Inventory inventory;
-    private Map<String, Room> roomData;
+// Booking Request Queue (FIFO)
+class BookingRequestQueue {
+    private Queue<Reservation> queue;
 
-    public SearchService(Inventory inventory, Map<String, Room> roomData) {
-        this.inventory = inventory;
-        this.roomData = roomData;
+    public BookingRequestQueue() {
+        queue = new LinkedList<>();
     }
 
-    public void searchAvailableRooms() {
-        System.out.println("Available Rooms:\n");
+    // Add request (enqueue)
+    public void addRequest(Reservation reservation) {
+        queue.offer(reservation);
+        System.out.println("Request added for " + reservation.getGuestName());
+    }
 
-        for (String type : inventory.getAllRoomTypes()) {
-            int available = inventory.getAvailability(type);
+    // View all requests (read-only)
+    public void displayQueue() {
+        System.out.println("\nBooking Request Queue:\n");
 
-            if (available > 0) {
-                Room room = roomData.get(type);
+        if (queue.isEmpty()) {
+            System.out.println("No pending requests.");
+            return;
+        }
 
-                System.out.println("Room Type: " + room.getType());
-                System.out.println("Price: ₹" + room.getPrice());
-                System.out.println("Amenities: " + room.getAmenities());
-                System.out.println("Available: " + available);
-                System.out.println("------------------------");
-            }
+        for (Reservation r : queue) {
+            System.out.println("Guest: " + r.getGuestName() +
+                    " | Room Type: " + r.getRoomType());
         }
     }
 }
 
+// Main Class
 public class BookMyStayApp {
     public static void main(String[] args) {
 
-        // Step 1: Create Inventory
-        Inventory inventory = new Inventory();
-        inventory.addRoom("Single", 5);
-        inventory.addRoom("Double", 0); // unavailable
-        inventory.addRoom("Suite", 3);
+        BookingRequestQueue bookingQueue = new BookingRequestQueue();
 
-        Map<String, Room> roomData = new HashMap<>();
-        roomData.put("Single", new Room("Single", 2000, "WiFi, AC"));
-        roomData.put("Double", new Room("Double", 3500, "WiFi, AC, TV"));
-        roomData.put("Suite", new Room("Suite", 5000, "WiFi, AC, TV, Mini Bar"));
+        // Simulating multiple booking requests (arrival order)
+        bookingQueue.addRequest(new Reservation("Pratyush", "Single"));
+        bookingQueue.addRequest(new Reservation("Amit", "Suite"));
+        bookingQueue.addRequest(new Reservation("Riya", "Double"));
 
-        SearchService searchService = new SearchService(inventory, roomData);
-
-        searchService.searchAvailableRooms();
+        // Display queue (FIFO order)
+        bookingQueue.displayQueue();
     }
 }
